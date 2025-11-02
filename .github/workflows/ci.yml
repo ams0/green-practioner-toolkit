@@ -1,0 +1,139 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Run Go fmt
+        run: |
+          cd cli
+          go fmt ./...
+          
+      - name: Run Go vet
+        run: |
+          cd cli
+          go vet ./...
+
+      - name: Validate YAML files
+        run: |
+          find deploy -name "*.yaml" -type f | while read file; do
+            echo "Checking $file"
+            # Basic YAML syntax check using Python
+            python3 -c "import yaml; yaml.safe_load(open('$file'))" || exit 1
+          done
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Run Go tests
+        run: |
+          cd cli
+          go test -v -race -coverprofile=coverage.out ./...
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./cli/coverage.out
+          flags: unittests
+        continue-on-error: true
+
+  kind-test:
+    name: Kind Integration Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Install kind
+        run: |
+          curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.20.0/kind-linux-amd64
+          chmod +x ./kind
+          sudo mv ./kind /usr/local/bin/kind
+
+      - name: Install kubectl
+        run: |
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/
+
+      - name: Install Helm
+        run: |
+          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+      - name: Create kind cluster
+        run: |
+          make cluster-create
+
+      - name: Verify cluster
+        run: |
+          kubectl cluster-info
+          kubectl get nodes
+
+      - name: Deploy Prometheus
+        run: |
+          make deploy-prometheus
+          kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=prometheus -n monitoring --timeout=300s
+
+      - name: Deploy Kepler
+        run: |
+          make deploy-kepler
+          # Wait a bit for Kepler DaemonSet
+          sleep 30
+          kubectl get pods -n kepler
+
+      - name: Deploy OpenCost
+        run: |
+          make deploy-opencost
+          kubectl wait --for=condition=ready pod -l app=opencost -n opencost --timeout=180s
+
+      - name: Deploy OTel Collector
+        run: |
+          make deploy-otel
+          kubectl wait --for=condition=ready pod -l app=otel-collector -n otel --timeout=180s
+
+      - name: Deploy Sample Workload
+        run: |
+          make deploy-sample
+          kubectl wait --for=condition=ready pod -l app=sample-app -n sample-workload --timeout=180s
+
+      - name: Check all pods
+        run: |
+          kubectl get pods -A
+          
+      - name: Build CLI
+        run: |
+          make cli-build
+
+      - name: Cleanup
+        if: always()
+        run: |
+          make cluster-delete

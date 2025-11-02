@@ -1,0 +1,16 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: green-practitioner-toolkit
+nodes:
+  - role: control-plane
+    extraPortMappings:
+      # Grafana
+      - containerPort: 30080
+        hostPort: 3000
+        protocol: TCP
+      # Prometheus
+      - containerPort: 30090
+        hostPort: 9090
+        protocol: TCP
+  - role: worker
+  - role: worker
