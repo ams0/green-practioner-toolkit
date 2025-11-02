@@ -17,7 +17,8 @@ spec:
     spec:
       containers:
         - name: otel-collector
-          image: otel/opentelemetry-collector:latest
+          # Pin to specific version for reproducibility
+          image: otel/opentelemetry-collector:0.107.0
           ports:
             - containerPort: 4317
               name: otlp-grpc

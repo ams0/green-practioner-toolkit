@@ -18,14 +18,16 @@ spec:
       serviceAccountName: opencost
       containers:
         - name: opencost
-          image: quay.io/kubecost1/kubecost-cost-model:latest
-          imagePullPolicy: Always
+          # Pin to specific version for reproducibility
+          image: quay.io/kubecost1/kubecost-cost-model:v2.3.2
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 9003
               name: http
           env:
             - name: PROMETHEUS_SERVER_ENDPOINT
               value: "http://prometheus-kube-prometheus-prometheus.monitoring.svc.cluster.local:9090"
+            # Demo API key - replace with your own for production use
             - name: CLOUD_PROVIDER_API_KEY
               value: "AIzaSyD29bGxmHAVEOBYtgd8sYM2uuzSB6ry4MI"
             - name: CLUSTER_ID
