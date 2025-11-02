@@ -1,0 +1,215 @@
+{
+  "dashboard": {
+    "title": "GPTK - Energy Efficiency Analysis",
+    "uid": "gptk-energy-efficiency",
+    "version": 1,
+    "timezone": "browser",
+    "editable": true,
+    "tags": ["gptk", "energy", "efficiency", "optimization"],
+    "style": "dark",
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    },
+    "refresh": "30s",
+    "panels": [
+      {
+        "id": 1,
+        "type": "graph",
+        "title": "Power Consumption Over Time",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 24,
+          "h": 8
+        },
+        "targets": [
+          {
+            "expr": "sum(rate(kepler_container_joules_total[5m]))",
+            "legendFormat": "Total Power (W)",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "watt",
+            "label": "Power"
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "type": "graph",
+        "title": "CPU Utilization vs Energy Consumption",
+        "gridPos": {
+          "x": 0,
+          "y": 8,
+          "w": 12,
+          "h": 8
+        },
+        "targets": [
+          {
+            "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"demo-workloads\"}[5m])) * 100",
+            "legendFormat": "CPU Utilization %",
+            "refId": "A",
+            "yAxisIndex": 0
+          },
+          {
+            "expr": "sum(rate(kepler_container_joules_total{namespace=\"demo-workloads\"}[5m]))",
+            "legendFormat": "Energy (W)",
+            "refId": "B",
+            "yAxisIndex": 1
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "percent",
+            "label": "CPU %"
+          },
+          {
+            "format": "watt",
+            "label": "Power (W)"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "type": "stat",
+        "title": "PUE (Power Usage Effectiveness)",
+        "gridPos": {
+          "x": 12,
+          "y": 8,
+          "w": 6,
+          "h": 4
+        },
+        "targets": [
+          {
+            "expr": "1.2",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "none",
+            "decimals": 2,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "value": null,
+                  "color": "green"
+                },
+                {
+                  "value": 1.5,
+                  "color": "yellow"
+                },
+                {
+                  "value": 2.0,
+                  "color": "red"
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 4,
+        "type": "stat",
+        "title": "Inferences per kWh",
+        "gridPos": {
+          "x": 18,
+          "y": 8,
+          "w": 6,
+          "h": 4
+        },
+        "targets": [
+          {
+            "expr": "sum(rate(http_requests_total{app=\"llm-inference\"}[5m])) * 3600 / (sum(rate(kepler_container_joules_total{namespace=\"demo-workloads\"}[5m])) / 1000)",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "none",
+            "decimals": 0
+          }
+        }
+      },
+      {
+        "id": 5,
+        "type": "gauge",
+        "title": "Energy Efficiency Score",
+        "gridPos": {
+          "x": 12,
+          "y": 12,
+          "w": 12,
+          "h": 8
+        },
+        "targets": [
+          {
+            "expr": "(sum(rate(http_requests_total[5m])) / sum(rate(kepler_container_joules_total[5m]))) * 100",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "none",
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "value": null,
+                  "color": "red"
+                },
+                {
+                  "value": 30,
+                  "color": "yellow"
+                },
+                {
+                  "value": 60,
+                  "color": "green"
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 6,
+        "type": "table",
+        "title": "Workload Energy Efficiency Ranking",
+        "gridPos": {
+          "x": 0,
+          "y": 16,
+          "w": 24,
+          "h": 8
+        },
+        "targets": [
+          {
+            "expr": "topk(10, sum by (pod) (rate(kepler_container_joules_total{namespace=\"demo-workloads\"}[5m])))",
+            "format": "table",
+            "refId": "A"
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {
+                "Time": true
+              },
+              "renameByName": {
+                "pod": "Workload",
+                "Value": "Power (W)"
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "schemaVersion": 38
+  },
+  "overwrite": true
+}

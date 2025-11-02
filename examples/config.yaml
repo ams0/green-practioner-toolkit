@@ -1,0 +1,77 @@
+# GPTK Configuration Example
+
+# Prometheus configuration
+prometheus:
+  url: http://localhost:9090
+  timeout: 30s
+
+# OpenCost configuration
+opencost:
+  url: http://localhost:9003
+  timeout: 30s
+
+# Carbon intensity settings (grams CO₂ per kWh)
+carbon:
+  # Default global average
+  default_intensity: 475
+  
+  # Cloud provider specific values
+  providers:
+    aws:
+      us-east-1: 415
+      us-west-2: 330
+      eu-west-1: 295
+      ap-southeast-1: 705
+    
+    gcp:
+      us-central1: 394
+      us-west1: 230
+      europe-west1: 120
+      asia-southeast1: 595
+    
+    azure:
+      eastus: 415
+      westus: 230
+      northeurope: 180
+      southeastasia: 620
+
+# Cost configuration
+cost:
+  # Currency
+  currency: USD
+  
+  # Custom node costs (for on-prem)
+  node_costs:
+    cpu_per_core_hour: 0.048
+    memory_per_gb_hour: 0.0123
+    gpu_per_hour: 1.50
+
+# Workload classification
+workloads:
+  inference:
+    labels:
+      - workload-type: ai-inference
+      - app: llm-inference
+  
+  training:
+    labels:
+      - workload-type: ai-training
+      - job-type: training
+  
+  batch:
+    labels:
+      - workload-type: batch-processing
+
+# Reporting configuration
+reporting:
+  formats:
+    - json
+    - yaml
+    - markdown
+  
+  # Include in reports
+  include:
+    - carbon_metrics
+    - cost_metrics
+    - efficiency_metrics
+    - recommendations

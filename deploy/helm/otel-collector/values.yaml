@@ -1,0 +1,108 @@
+# OpenTelemetry Collector Helm Chart Values
+# https://github.com/open-telemetry/opentelemetry-helm-charts
+
+mode: deployment
+
+image:
+  repository: otel/opentelemetry-collector-k8s
+  tag: "0.91.0"
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+config:
+  receivers:
+    # Receive OTLP traces and metrics
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
+    
+    # Prometheus receiver for scraping
+    prometheus:
+      config:
+        scrape_configs:
+          - job_name: 'kepler'
+            static_configs:
+              - targets: ['kepler-exporter.kepler-system.svc.cluster.local:9102']
+          
+          - job_name: 'opencost'
+            static_configs:
+              - targets: ['opencost.opencost.svc.cluster.local:9003']
+  
+  processors:
+    # Add carbon and cost attributes
+    attributes:
+      actions:
+        - key: carbon.source
+          value: kepler
+          action: insert
+        - key: cost.source
+          value: opencost
+          action: insert
+    
+    # Batch processing for efficiency
+    batch:
+      timeout: 10s
+      send_batch_size: 1024
+    
+    # Memory limiter
+    memory_limiter:
+      check_interval: 1s
+      limit_mib: 400
+  
+  exporters:
+    # Export to Prometheus
+    prometheus:
+      endpoint: "0.0.0.0:8889"
+    
+    # Logging for debugging
+    logging:
+      loglevel: info
+    
+    # Export to Prometheus remote write (to Prometheus in kepler-system)
+    prometheusremotewrite:
+      endpoint: http://prometheus-server.kepler-system.svc.cluster.local:80/api/v1/write
+      tls:
+        insecure: true
+  
+  service:
+    pipelines:
+      # Traces pipeline
+      traces:
+        receivers: [otlp]
+        processors: [memory_limiter, attributes, batch]
+        exporters: [logging]
+      
+      # Metrics pipeline
+      metrics:
+        receivers: [otlp, prometheus]
+        processors: [memory_limiter, attributes, batch]
+        exporters: [prometheus, prometheusremotewrite, logging]
+
+ports:
+  otlp:
+    enabled: true
+    containerPort: 4317
+    servicePort: 4317
+    protocol: TCP
+  otlp-http:
+    enabled: true
+    containerPort: 4318
+    servicePort: 4318
+    protocol: TCP
+  prometheus:
+    enabled: true
+    containerPort: 8889
+    servicePort: 8889
+    protocol: TCP
+    
+service:
+  type: ClusterIP

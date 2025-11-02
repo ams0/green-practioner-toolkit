@@ -1,0 +1,45 @@
+# OpenCost Helm Chart Values
+# https://github.com/opencost/opencost-helm-chart
+
+opencost:
+  exporter:
+    image:
+      repository: quay.io/kubecost1/kubecost-cost-model
+      tag: latest
+    
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+    
+    # Cloud provider configuration (can be customized)
+    cloudProviderApiKey: ""
+    defaultClusterId: "gptk-demo-cluster"
+    
+  # Enable Prometheus integration
+  prometheus:
+    external:
+      enabled: true
+      url: http://prometheus-server.kepler-system.svc.cluster.local:80
+    
+  ui:
+    enabled: true
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
+
+  service:
+    type: ClusterIP
+    port: 9003
+    
+  # Enable ServiceMonitor for Prometheus
+  serviceMonitor:
+    enabled: true
+    namespace: opencost
