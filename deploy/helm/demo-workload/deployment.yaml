@@ -1,0 +1,143 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: demo-workloads
+  labels:
+    app: gptk-demo
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llm-inference-simulator
+  namespace: demo-workloads
+  labels:
+    app: llm-inference
+    workload-type: ai-inference
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: llm-inference
+  template:
+    metadata:
+      labels:
+        app: llm-inference
+        workload-type: ai-inference
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+    spec:
+      containers:
+      - name: inference-simulator
+        image: python:3.11-slim
+        command:
+          - python3
+          - -c
+          - |
+            import time
+            import random
+            import http.server
+            import socketserver
+            from threading import Thread
+            
+            # Simulate CPU-intensive inference work
+            def simulate_inference():
+                while True:
+                    # Simulate variable compute load (like LLM token generation)
+                    duration = random.uniform(0.5, 2.0)
+                    start = time.time()
+                    while time.time() - start < duration:
+                        _ = sum(i**2 for i in range(10000))
+                    time.sleep(random.uniform(0.1, 0.5))
+            
+            # Simple HTTP server for health checks
+            class HealthHandler(http.server.SimpleHTTPRequestHandler):
+                def do_GET(self):
+                    self.send_response(200)
+                    self.send_header('Content-type', 'text/plain')
+                    self.end_headers()
+                    self.wfile.write(b'OK - LLM Inference Simulator Running')
+            
+            # Start inference simulation in background
+            Thread(target=simulate_inference, daemon=True).start()
+            
+            # Start health check server
+            with socketserver.TCPServer(("", 8080), HealthHandler) as httpd:
+                print("LLM Inference Simulator running on port 8080")
+                httpd.serve_forever()
+        resources:
+          requests:
+            cpu: 500m
+            memory: 512Mi
+          limits:
+            cpu: 1000m
+            memory: 1Gi
+        ports:
+        - containerPort: 8080
+          name: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: llm-inference
+  namespace: demo-workloads
+spec:
+  selector:
+    app: llm-inference
+  ports:
+  - port: 8080
+    targetPort: 8080
+    name: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: batch-job-simulator
+  namespace: demo-workloads
+  labels:
+    app: batch-job
+    workload-type: batch-processing
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: batch-job
+  template:
+    metadata:
+      labels:
+        app: batch-job
+        workload-type: batch-processing
+    spec:
+      containers:
+      - name: batch-processor
+        image: python:3.11-slim
+        command:
+          - python3
+          - -c
+          - |
+            import time
+            import random
+            
+            print("Starting batch job processor...")
+            iteration = 0
+            while True:
+                iteration += 1
+                print(f"Processing batch {iteration}...")
+                
+                # Simulate batch processing with variable intensity
+                work_duration = random.uniform(5, 15)
+                start = time.time()
+                while time.time() - start < work_duration:
+                    _ = sum(i**3 for i in range(50000))
+                
+                # Rest period between batches
+                sleep_duration = random.uniform(2, 5)
+                print(f"Batch {iteration} complete. Sleeping for {sleep_duration:.1f}s")
+                time.sleep(sleep_duration)
+        resources:
+          requests:
+            cpu: 250m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi

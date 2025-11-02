@@ -1,0 +1,232 @@
+{
+  "dashboard": {
+    "title": "GPTK - Carbon & Cost Overview",
+    "uid": "gptk-carbon-cost",
+    "version": 1,
+    "timezone": "browser",
+    "editable": true,
+    "tags": ["gptk", "carbon", "cost", "sustainability"],
+    "style": "dark",
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "refresh": "30s",
+    "panels": [
+      {
+        "id": 1,
+        "type": "graph",
+        "title": "Power Consumption by Namespace (Watts)",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 12,
+          "h": 8
+        },
+        "targets": [
+          {
+            "expr": "sum by (namespace) (kepler_container_joules_total)",
+            "legendFormat": "{{namespace}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "watt",
+            "label": "Power (W)"
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "type": "stat",
+        "title": "Total CO₂e Today (grams)",
+        "gridPos": {
+          "x": 12,
+          "y": 0,
+          "w": 6,
+          "h": 4
+        },
+        "targets": [
+          {
+            "expr": "sum(increase(kepler_container_joules_total[24h])) * 0.0004",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "g",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "value": null,
+                  "color": "green"
+                },
+                {
+                  "value": 1000,
+                  "color": "yellow"
+                },
+                {
+                  "value": 5000,
+                  "color": "red"
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 3,
+        "type": "stat",
+        "title": "Estimated Cost Today ($)",
+        "gridPos": {
+          "x": 18,
+          "y": 0,
+          "w": 6,
+          "h": 4
+        },
+        "targets": [
+          {
+            "expr": "sum(increase(opencost_allocation_cpu_cost[24h]))",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "currencyUSD",
+            "decimals": 2
+          }
+        }
+      },
+      {
+        "id": 4,
+        "type": "graph",
+        "title": "CPU Utilization vs Power Draw",
+        "gridPos": {
+          "x": 0,
+          "y": 8,
+          "w": 12,
+          "h": 8
+        },
+        "targets": [
+          {
+            "expr": "sum(rate(container_cpu_usage_seconds_total[5m])) * 100",
+            "legendFormat": "CPU Utilization %",
+            "refId": "A"
+          },
+          {
+            "expr": "sum(rate(kepler_container_joules_total[5m]))",
+            "legendFormat": "Power (W)",
+            "refId": "B"
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "type": "table",
+        "title": "Cost by Workload",
+        "gridPos": {
+          "x": 12,
+          "y": 8,
+          "w": 12,
+          "h": 8
+        },
+        "targets": [
+          {
+            "expr": "sum by (namespace, pod) (opencost_allocation_cpu_cost + opencost_allocation_memory_cost)",
+            "format": "table",
+            "refId": "A"
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {
+                "Time": true
+              },
+              "renameByName": {
+                "namespace": "Namespace",
+                "pod": "Pod",
+                "Value": "Cost ($)"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "type": "graph",
+        "title": "CO₂ Emissions by Workload Type",
+        "gridPos": {
+          "x": 0,
+          "y": 16,
+          "w": 24,
+          "h": 8
+        },
+        "targets": [
+          {
+            "expr": "sum by (workload_type) (rate(kepler_container_joules_total{workload_type!=\"\"}[5m])) * 0.0004",
+            "legendFormat": "{{workload_type}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "g/s",
+            "label": "CO₂e (g/s)"
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "type": "stat",
+        "title": "Energy Efficiency (Inferences per kWh)",
+        "gridPos": {
+          "x": 12,
+          "y": 4,
+          "w": 6,
+          "h": 4
+        },
+        "targets": [
+          {
+            "expr": "sum(rate(http_requests_total{app=\"llm-inference\"}[5m])) / (sum(rate(kepler_container_joules_total{namespace=\"demo-workloads\"}[5m])) / 3600000)",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "none",
+            "decimals": 0
+          }
+        }
+      },
+      {
+        "id": 8,
+        "type": "stat",
+        "title": "Average gCO₂e per Inference",
+        "gridPos": {
+          "x": 18,
+          "y": 4,
+          "w": 6,
+          "h": 4
+        },
+        "targets": [
+          {
+            "expr": "(sum(rate(kepler_container_joules_total{namespace=\"demo-workloads\",app=\"llm-inference\"}[5m])) * 0.0004) / sum(rate(http_requests_total{app=\"llm-inference\"}[5m]))",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "g",
+            "decimals": 3
+          }
+        }
+      }
+    ],
+    "schemaVersion": 38
+  },
+  "overwrite": true
+}

@@ -1,0 +1,44 @@
+# Kepler Helm Chart Values
+# https://github.com/sustainable-computing-io/kepler-helm-chart
+
+serviceMonitor:
+  enabled: true
+  namespace: kepler-system
+  labels:
+    prometheus: kube-prometheus
+
+prometheus:
+  deploy: true
+  server:
+    enabled: true
+    retention: 15d
+    resources:
+      requests:
+        cpu: 100m
+        memory: 512Mi
+      limits:
+        cpu: 500m
+        memory: 1Gi
+
+kepler:
+  image:
+    repository: quay.io/sustainable_computing_io/kepler
+    tag: latest
+    pullPolicy: IfNotPresent
+  
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+  # Enable model server for enhanced power estimation
+  modelServer:
+    enabled: true
+  
+  # Export metrics to Prometheus
+  service:
+    type: ClusterIP
+    port: 9102

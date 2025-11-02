@@ -1,0 +1,82 @@
+# Grafana Helm Chart Values
+# https://github.com/grafana/helm-charts/tree/main/charts/grafana
+
+image:
+  repository: grafana/grafana
+  tag: "10.2.2"
+
+adminUser: admin
+adminPassword: admin
+
+persistence:
+  enabled: false
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+# Datasources
+datasources:
+  datasources.yaml:
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        url: http://prometheus-server.kepler-system.svc.cluster.local:80
+        access: proxy
+        isDefault: true
+        editable: true
+        jsonData:
+          timeInterval: 30s
+      
+      - name: OpenCost
+        type: prometheus
+        url: http://opencost.opencost.svc.cluster.local:9003
+        access: proxy
+        editable: true
+      
+      - name: OTel Collector
+        type: prometheus
+        url: http://otel-collector-opentelemetry-collector.otel-system.svc.cluster.local:8889
+        access: proxy
+        editable: true
+
+# Dashboard providers
+dashboardProviders:
+  dashboardproviders.yaml:
+    apiVersion: 1
+    providers:
+      - name: 'gptk-dashboards'
+        orgId: 1
+        folder: 'GPTK'
+        type: file
+        disableDeletion: false
+        editable: true
+        options:
+          path: /var/lib/grafana/dashboards/gptk
+
+# Load dashboards from ConfigMap
+dashboardsConfigMaps:
+  gptk-dashboards: "grafana-dashboards"
+
+service:
+  type: ClusterIP
+  port: 3000
+
+env:
+  GF_SECURITY_ADMIN_PASSWORD: admin
+  GF_SECURITY_ADMIN_USER: admin
+  GF_INSTALL_PLUGINS: ""
+  GF_FEATURE_TOGGLES_ENABLE: "publicDashboards"
+
+sidecar:
+  dashboards:
+    enabled: true
+    label: grafana_dashboard
+    folder: /tmp/dashboards
+    provider:
+      foldersFromFilesStructure: true
