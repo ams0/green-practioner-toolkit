@@ -1,0 +1,15 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: kepler
+  namespace: kepler
+  labels:
+    app: kepler
+spec:
+  selector:
+    matchLabels:
+      app: kepler
+  endpoints:
+    - port: metrics
+      interval: 30s
+      path: /metrics
